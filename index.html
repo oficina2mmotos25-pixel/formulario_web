@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistema Integração Bradesco — Integrado com Boletos</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #eef1f5; }
+    header { background: #003366; color: white; padding: 15px 20px; font-size: 22px; font-weight: bold; text-align:center; }
+    .sidebar { width: 260px; height: 100vh; background: #1f2a44; color: white; padding-top: 20px; position: fixed; top: 0; left: 0; }
+    .menu-item { padding: 14px 22px; cursor: pointer; transition: 0.25s; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .menu-item:hover { background: #33415c; }
+    .submenu { background: #27324a; display: none; }
+    .submenu .menu-item { padding-left: 45px; font-size: 14px; }
+    .content { margin-left: 280px; padding: 30px; }
+    .card, .table-box { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); max-width: 900px; }
+    label { font-weight: bold; margin-top: 10px; display: block; }
+    input, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #bbb; }
+    button { margin-top: 20px; padding: 12px 18px; background: #003366; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    button:hover { background: #0a4a8f; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { padding: 10px; border-bottom: 1px solid #ccc; }
+    th { background: #f0f3f7; }
+    .filters input { width: 32%; padding: 10px; margin-right: 1%; border-radius: 6px; border: 1px solid #ccc; }
+    .dashboard-box { display: flex; gap: 20px; }
+    .dash { background: white; padding: 20px; border-radius: 10px; width: 200px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    .dash h1 { font-size: 36px; margin: 0; }
+  </style>
+</head>
+<body>
+<header>Sistema – Integração Bradesco</header>
+
+<div class="sidebar">
+  <h3>Menu</h3>
+  <div class="menu-item" onclick="toggle('cadastro')">Cadastro</div>
+  <div id="cadastro" class="submenu">
+    <div class="menu-item" onclick="abrirTela('telaCadastro')">Cadastro de Clientes</div>
+    <div class="menu-item" onclick="abrirTela('telaClientes')">Clientes Cadastrados</div>
+  </div>
+  <div class="menu-item" onclick="toggle('faturamento')">Faturamento</div>
+  <div id="faturamento" class="submenu">
+    <div class="menu-item" onclick="toggle('boletos')">Boletos</div>
+    <div id="boletos" class="submenu">
+      <div class="menu-item" onclick="abrirTela('telaCriarBoleto')">Criar Boleto</div>
+      <div class="menu-item" onclick="abrirTela('telaSegundaVia')">2ª Via</div>
+      <div class="menu-item" onclick="abrirTela('telaResultados')">Resultados</div>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <h2>Painel do Sistema</h2>
+  <p>Selecione uma opção no menu ao lado.</p>
+
+  <!-- CADASTRO -->
+  <div id="telaCadastro" class="card" style="display:none;">
+    <h2>Cadastro de Cliente</h2>
+    <label>Nome:</label><input id="nome">
+    <label>Endereço:</label><input id="endereco">
+    <label>CPF:</label><input id="cpf">
+    <label>Placa:</label><input id="placa">
+    <button onclick="salvarCadastro()">Salvar Cadastro</button>
+  </div>
+
+  <!-- LISTA CLIENTES -->
+  <div id="telaClientes" class="table-box" style="display:none;">
+    <h2>Clientes Cadastrados</h2>
+    <div class="filters">
+      <input id="filtroNome" placeholder="Filtrar por nome" onkeyup="filtrarClientes()">
+      <input id="filtroCPF" placeholder="Filtrar por CPF" onkeyup="filtrarClientes()">
+      <input id="filtroPlaca" placeholder="Filtrar por placa" onkeyup="filtrarClientes()">
+    </div>
+    <table><thead><tr><th>Nome</th><th>CPF</th><th>Endereço</th><th>Placa</th></tr></thead><tbody id="tabelaClientes"></tbody></table>
+  </div>
+
+  <!-- CRIAR BOLETO -->
+  <div id="telaCriarBoleto" class="card" style="display:none;">
+    <h2>Criar Boleto</h2>
+    <label>Nome:</label>
+    <select id="boletoNome" onchange="preencherEndereco()"><option>Selecione...</option></select>
+
+    <label>Endereço:</label>
+    <input id="boletoEndereco" disabled>
+
+    <label>Vencimento:</label>
+    <input type="date" id="boletoVencimento">
+
+    <label>Quantidade de Parcelas:</label>
+    <input type="number" id="boletoQtd" min="1" max="36">
+
+    <button onclick="gerarBoleto()">Gerar Boleto</button>
+  </div>
+
+  <!-- SEGUNDA VIA -->
+  <div id="telaSegundaVia" class="table-box" style="display:none;">
+    <h2>2ª Via de Boletos</h2>
+    <div class="filters">
+      <input id="filtroBVNome" placeholder="Pesquisar por nome" onkeyup="filtrarBoletos()">
+      <input id="filtroBVCPF" placeholder="Pesquisar por CPF" onkeyup="filtrarBoletos()">
+      <input id="filtroBVPlaca" placeholder="Pesquisar por placa" onkeyup="filtrarBoletos()">
+    </div>
+    <table><thead><tr><th>Nome</th><th>CPF</th><th>Placa</th><th>Vencimento</th><th>Status</th></tr></thead><tbody id="tabelaBoletos"></tbody></table>
+  </div>
+
+  <!-- DASHBOARD RESULTADOS -->
+  <div id="telaResultados" style="display:none;">
+    <h2>Resultados</h2>
+    <div class="dashboard-box">
+      <div class="dash"><h1 id="totalPagos">0</h1><p>Boletos Pagos</p></div>
+      <div class="dash"><h1 id="totalAbertos">0</h1><p>Boletos em Aberto</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let listaClientes = [];
+let listaBoletos = [];
+
+function toggle(id){ const el = document.getElementById(id); el.style.display = el.style.display === 'block' ? 'none' : 'block'; }
+function abrirTela(t){ document.querySelectorAll('.card, .table-box, #telaResultados').forEach(el=>el.style.display='none'); document.getElementById(t).style.display='block'; }
+
+function salvarCadastro(){
+  const nome = document.getElementById('nome').value.trim(), endereco = document.getElementById('endereco').value.trim(), cpf = document.getElementById('cpf').value.trim(), placa = document.getElementById('placa').value.trim();
+  if(!nome||!endereco||!cpf||!placa){ alert('Preencha todos os campos!'); return; }
+  listaClientes.push({nome,endereco,cpf,placa}); atualizarTabela(); atualizarSelectBoletos(); alert('Cadastro salvo!'); abrirTela('telaClientes');
+}
+
+function atualizarTabela(){ tabelaClientes.innerHTML = listaClientes.map(c=>`<tr><td>${c.nome}</td><td>${c.cpf}</td><td>${c.endereco}</td><td>${c.placa}</td></tr>`).join(''); }
+function filtrarClientes(){ let n=filtroNome.value.toLowerCase(), c=filtroCPF.value.toLowerCase(), p=filtroPlaca.value.toLowerCase(); tabelaClientes.innerHTML = listaClientes.filter(x=>x.nome.toLowerCase().includes(n)&&x.cpf.includes(c)&&x.placa.toLowerCase().includes(p)).map(c=>`<tr><td>${c.nome}</td><td>${c.cpf}</td><td>${c.endereco}</td><td>${c.placa}</td></tr>`).join(''); }
+function atualizarSelectBoletos(){ boletoNome.innerHTML = '<option>Selecione...</option>' + listaClientes.map(c=>`<option value="${c.nome}">${c.nome}</option>`).join(''); }
+function preencherEndereco(){ let c = listaClientes.find(x=>x.nome===boletoNome.value); boletoEndereco.value = c?c.endereco:''; }
+
+function gerarBoleto(){
+  // placeholder, será sobrescrita pela integração
+  if(boletoNome.value==='Selecione...'){ alert('Selecione um cliente'); return; }
+  listaBoletos.push({ nome: boletoNome.value, cpf: listaClientes.find(x=>x.nome===boletoNome.value).cpf, placa: listaClientes.find(x=>x.nome===boletoNome.value).placa, venc: boletoVencimento.value, status:'Aberto' });
+  alert('Boleto gerado!'); atualizarTabelaBoletos(); atualizarDashboard(); abrirTela('telaSegundaVia');
+}
+
+function atualizarTabelaBoletos(){ tabelaBoletos.innerHTML = listaBoletos.map(b=>`<tr><td>${b.nome}</td><td>${b.cpf}</td><td>${b.placa}</td><td>${b.venc}</td><td>${b.status}</td></tr>`).join(''); }
+function filtrarBoletos(){ let n=filtroBVNome.value.toLowerCase(), c=filtroBVCPF.value.toLowerCase(), p=filtroBVPlaca.value.toLowerCase(); tabelaBoletos.innerHTML = listaBoletos.filter(b=>b.nome.toLowerCase().includes(n)&&b.cpf.includes(c)&&b.placa.toLowerCase().includes(p)).map(b=>`<tr><td>${b.nome}</td><td>${b.cpf}</td><td>${b.placa}</td><td>${b.venc}</td><td>${b.status}</td></tr>`).join(''); }
+
+function atualizarDashboard(){ totalPagos.textContent = listaBoletos.filter(x=>x.status==='Pago').length; totalAbertos.textContent = listaBoletos.filter(x=>x.status==='Aberto').length; }
+
+// --- INTEGRAÇÃO BOLETO - FUNÇÕES ADICIONAIS ---
+function gerarBoletoIntegrado(){
+  if(boletoNome.value==='Selecione...'){ alert('Selecione um cliente'); return; }
+  const cliente = listaClientes.find(x=>x.nome===boletoNome.value);
+  if(!cliente){ alert('Cliente não encontrado'); return; }
+
+  const qtd = parseInt(boletoQtd.value) || 1;
+  const baseDados = {
+    beneficiario: '2 M MOTOS',
+    beneficiarioCNPJ: '35.432.104/0001-50',
+    agenciaCodigo: '748-X / 3950.25.08644',
+    nossoNumero: '',
+    pagadorNome: cliente.nome,
+    pagadorDoc: cliente.cpf,
+    pagadorEndereco: cliente.endereco,
+    valor: cliente.valor || 'R$ 815,83',
+    vencimento: boletoVencimento.value,
+    instrucoes: 'APOS VENCIMENTO COBRAR MULTA DE 10%.' ,
+    backgroundPdfUrl: ''
+  };
+
+  const url = 'boleto.html';
+  const w = window.open(url, '_blank');
+  const sendCommand = ()=>{
+    try{ w.postMessage({ type: 'render-parcelas', payload: { baseDados: baseDados, qtd: qtd } }, '*'); }
+    catch(e){ setTimeout(()=>{ try{ w.postMessage({ type: 'render-parcelas', payload: { baseDados: baseDados, qtd: qtd } }, '*'); }catch{} },500); }
+  };
+
+  const timer = setInterval(()=>{
+    try{
+      if(w && w.document && w.document.readyState === 'complete'){
+        clearInterval(timer);
+        sendCommand();
+      }
+    }catch(e){ clearInterval(timer); setTimeout(sendCommand, 500); }
+  }, 200);
+}
+
+// sobrescreve gerarBoleto para usar integração
+function gerarBoleto(){ gerarBoletoIntegrado(); }
+
+// recebe boletos gerados e atualiza lista
+window.addEventListener('message', (e)=>{
+  if(!e.data) return;
+  if(e.data.type === 'generated-boletos'){
+    const boletos = e.data.payload || [];
+    boletos.forEach(b=> listaBoletos.push({ nome: b.pagadorNome || b.nome, cpf: b.pagadorDoc || b.cpf, placa: b.placa || b.placa, venc: b.vencimento || b.venc || b.vencimento, status: 'Aberto', dadosRaw: b }));
+    atualizarTabelaBoletos(); atualizarDashboard(); abrirTela('telaSegundaVia');
+  }
+});
+</script>
+
+</body>
+</html>
